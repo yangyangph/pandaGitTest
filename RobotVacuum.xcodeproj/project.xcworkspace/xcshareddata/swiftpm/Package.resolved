@@ -1,0 +1,23 @@
+{
+  "pins" : [
+    {
+      "identity" : "countrypicker",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SURYAKANTSHARMA/CountryPicker.git",
+      "state" : {
+        "revision" : "3f3383fd2767ffffb0119b40ed4404fb60100872",
+        "version" : "2.1.0"
+      }
+    },
+    {
+      "identity" : "snapkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/SnapKit/SnapKit.git",
+      "state" : {
+        "revision" : "f222cbdf325885926566172f6f5f06af95473158",
+        "version" : "5.6.0"
+      }
+    }
+  ],
+  "version" : 2
+}

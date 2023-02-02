@@ -1,0 +1,61 @@
+name: RobotVacuum
+options:
+  developmentLanguage: zh-Hans
+
+targets:
+  RobotVacuumApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "11.0"
+    info:
+      path: RobotVacuum/RobotVacuumApp/Info.plist
+      properties:
+        UILaunchStoryboardName: Launch Screen.storyboard
+        UILaunchScreen:
+          UIImageName: LaunchImage
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: true
+
+        UIApplicationScreenManifest_Generation: YES
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortraint
+        UISupportedInterfaceOrientations~iphone:
+          - UIInterfaceOrientationPortrain
+        UIUserInterfaceStyle: Light
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDispalyName: $(bundleDispalyName)
+        
+    settings:
+      base:
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        DEVELOPMENT_TEAM: E695D9MPGR
+        PRODUCT_BUNDLE_IDENTIFIER: com.ubtrobot.robotvacuum
+
+    dependencies:
+      - package: RobotVacuum
+
+    sources:
+      - path: ./RobotVacuum/RobotVacuumApp
+
+  RobotVacuumAppTests:
+      type: bundle.unit-test
+      platform: iOS
+      deploymentTarget: "11.0"
+      sources:
+        - path: ./RobotVacuum/RobotVacuumAppTests
+      dependencies:
+        - target: RobotVacuumApp
+  RobotVacuumAppUITests:
+      type: bundle.ui-testing
+      platform: iOS
+      deploymentTarget: "11.0"
+      sources:
+        - path: ./RobotVacuum/RobotVacuumAppUITests
+      dependencies:
+        - target: RobotVacuumApp
+
+packages:
+  RobotVacuum:
+    path: ./RobotVacuum/RobotVacuum

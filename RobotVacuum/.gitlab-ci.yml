@@ -1,0 +1,138 @@
+lint:
+  stage: build
+  tags:
+    - rosa
+    - linux
+  image:
+    name: rosa/linters:20230117
+    entrypoint:
+      - ""
+  variables: {}
+  script:
+    - |-
+      set -xeo pipefail
+
+      # module: fs
+      st_fs_install_command() {
+        local command_dir=${1:?Missing argument \`\$1 - command_dir\` when calling st_fs_install_command.}
+        local command_url=${2:?Missing argument \`\$2 - command_url\` when calling st_fs_install_command.}
+        local command_name=${3:?Missing argument \`\$3 - command_name\` when calling st_fs_install_command.}
+
+        st_fs_download_file "$command_url" "$command_dir" "$command_name"
+
+        local command_abs_dir=$(cd -- "$command_dir" && pwd)
+        chmod +x "$command_abs_dir/$command_name"
+
+        if ! (echo "$PATH" | grep -Eq "$command_abs_dir"); then
+          export PATH="$command_abs_dir:$PATH"
+        fi
+      }
+
+      st_fs_download_file() {
+        local url=${1:?Missing argument \`\$1 - url\` when calling st_fs_download_file.}
+        local directory=${2:?Missing argument \`\$2 - directory\` when calling st_fs_download_file.}
+        local filename=${3:?Missing argument \`\$3 - filename\` when calling st_fs_download_file.}
+
+        mkdir -p "$directory"
+        local abs_dir=$(cd -- "$directory" && pwd)
+
+        if (which wget >/dev/null); then
+          wget "$url" -O "$abs_dir/$filename"
+        elif (which curl >/dev/null); then
+          curl -L "$url" -o "$abs_dir/$filename"
+        else
+          st_log_error "wget or curl not found when calling st_fs_download_file."
+          return 1
+        fi
+      }
+
+      st_fs_add_host() {
+        local domain=${1:?Missing argument \`\$1 - domain\` when calling st_fs_add_host.}
+        local ip=${2:?Missing argument \`\$2 - ip\` when calling st_fs_add_host.}
+
+        if (grep -Eq "$domain" /etc/hosts); then
+          echo "$(sed "s/.*$domain/$ip $domain/g" /etc/hosts)" >/etc/hosts # if you use `sed -i ...` directly, it will fail and prompt: sed: can't move '/etc/hosts...' to '/etc/hosts': Resource busy.
+        else
+          echo "$ip $domain" >>/etc/hosts
+        fi
+      }
+
+      st_fs_read_string_from_text_file() {
+        local text_file=${1:?Missing argument \`\$1 - text_file\` when calling st_fs_read_string_from_text_file.}
+        local string_regex=${2:?Missing argument \`\$2 - string_regex\` when calling st_fs_read_string_from_text_file.}
+        local line_regex=${3-.*}
+
+        grep -E "$line_regex" "$text_file" | grep -Eo "$string_regex"
+      }
+
+      st_fs_write_string_into_text_file() {
+        local text_file=${1:?Missing argument \`\$1 - text_file\` when calling st_fs_write_string_into_text_file.}
+        local string_content=${2:?Missing argument \`\$2 - string_content\` when calling st_fs_write_string_into_text_file.}
+        local string_regex=${3:?Missing argument \`\$3 - string_regex\` when calling st_fs_write_string_into_text_file.}
+        local line_regex=${4-.*}
+
+        if [ "$(uname)" = 'Darwin' ]; then
+          if [ -L "$text_file" ]; then
+            sed -Ei '' "/$line_regex/s/$string_regex/$string_content/g" "$(readlink -f $text_file)"
+          else
+            sed -Ei '' "/$line_regex/s/$string_regex/$string_content/g" "$text_file"
+          fi
+        else
+          sed -Ei --follow-symlinks "/$line_regex/s/$string_regex/$string_content/g" "$text_file"
+        fi
+      }
+
+      # module: log
+      st_log_no_color=${st_log_no_color:-}
+
+      st_log_debug() {
+        if [ -n "$st_log_no_color" ]; then
+          printf "[debug] $@\n"
+        else
+          printf "\033[90m[debug]\033[0m $@\n"
+        fi
+      }
+
+      st_log_info() {
+        printf "$@\n"
+      }
+
+      st_log_warn() {
+        if [ -n "$st_log_no_color" ]; then
+          >&2 printf "[warn] $@\n"
+        else
+          >&2 printf "\033[93m[warn]\033[0m $@\n"
+        fi
+      }
+
+      st_log_error() {
+        if [ -n "$st_log_no_color" ]; then
+          >&2 printf "[error] $@\n"
+        else
+          >&2 printf "\033[91m[error]\033[0m $@\n"
+        fi
+      }
+
+      st_log_fatal() {
+        if [ -n "$st_log_no_color" ]; then
+          >&2 printf "[fatal] $@\n"
+        else
+          >&2 printf "\033[101m[fatal]\033[0m $@\n"
+        fi
+      }
+
+      # Start from here
+      env | grep -E '^PCI_' || true
+
+      if [ -z "$CI_MERGE_REQUEST_TARGET_BRANCH_NAME"]; then
+        st_log_error "Not triggered by a merge request."
+        exit 1
+      fi
+
+      st_fs_install_command ".ci-tmp/bin" \
+        "https://gitlab.ubtrobot.com/rosa-dev/external-tools/-/raw/rosa/scripts/linters/latest/linters" \
+        "linters"
+
+      bash $(which linters) --git --start-commit "$CI_MERGE_REQUEST_DIFF_BASE_SHA"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
